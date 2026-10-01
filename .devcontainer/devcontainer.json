@@ -1,0 +1,29 @@
+{
+  "name": "物件導向程式設計 · 課程環境",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.live-server"
+      ],
+      "settings": {
+        "files.autoSave": "afterDelay",
+        "editor.fontSize": 14,
+        "workbench.startupEditor": "readme"
+      }
+    }
+  },
+  "mounts": [
+    "source=claude-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+  },
+  "remoteUser": "node",
+  "postCreateCommand": "sudo chown -R node:node /home/node/.claude || true; sudo npm install -g @anthropic-ai/claude-code@latest || true",
+  "forwardPorts": [3000, 5500]
+}
