@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M2 3D 物種雛形：硫鐵岩鱗古螺 (Loricata ferrosulfuris)</title>
+
+    <!-- 1. 引入 Three.js 核心與擴展 (傳統 UMD 格式，完全相容本機 file:/// 雙擊打開) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- 2. 引入 Blender 4.4 導出之實體 3D 模型 Base64 資料 -->
+    <script src="model_data.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #07090f;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: #e0e6ed;
+        height: 100vh;
+        overflow: hidden;
+      }
+      #app-container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+      }
+      /* 左側 3D 觀測視窗 */
+      #viewport-panel {
+        flex: 1;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at center, #0e1626 0%, #06090e 100%);
+      }
+      #canvas-container {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      #canvas-container canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .view-hint {
+        position: absolute;
+        bottom: 20px;
+        left: 25px;
+        font-size: 13px;
+        color: #8da2ba;
+        background: rgba(10, 16, 26, 0.85);
+        padding: 9px 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(140, 160, 190, 0.25);
+        backdrop-filter: blur(6px);
+        pointer-events: none;
+        z-index: 10;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      }
+      /* 右側生態監控數據儀表板 */
+      #dashboard-panel {
+        width: 360px;
+        background: #0b1018;
+        border-left: 1px solid #1a2536;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        overflow-y: auto;
+        z-index: 10;
+      }
+      .panel-header {
+        border-bottom: 1px solid #1a2536;
+        padding-bottom: 16px;
+        margin-bottom: 20px;
+      }
+      .species-tag {
+        font-size: 11px;
+        color: #d4a754;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 4px;
+      }
+      .species-title {
+        font-size: 21px;
+        font-weight: 700;
+        color: #ffffff;
+        margin: 0 0 6px 0;
+      }
+      .species-latin {
+        font-size: 13px;
+        color: #7e93ab;
+        font-style: italic;
+      }
+      .section-box {
+        background: #111824;
+        border: 1px solid #1c293c;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 18px;
+      }
+      .section-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #9ab1cc;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      /* 狀態徽章 */
+      #state-badge {
+        font-size: 13px;
+        padding: 9px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        text-align: center;
+        transition: all 0.3s ease;
+      }
+      .calm-mode {
+        background: rgba(60, 200, 150, 0.15);
+        color: #4ef0b5;
+        border: 1px solid rgba(78, 240, 181, 0.3);
+      }
+      .alert-mode {
+        background: rgba(255, 90, 60, 0.18);
+        color: #ff7250;
+        border: 1px solid rgba(255, 114, 80, 0.4);
+      }
+      /* 數值小卡 */
+      .metric-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .metric-card {
+        flex: 1;
+        background: #090e15;
+        padding: 10px 12px;
+        border-radius: 6px;
+        border: 1px solid #182333;
+      }
+      .metric-label {
+        font-size: 11px;
+        color: #718499;
+        margin-bottom: 4px;
+      }
+      .metric-val {
+        font-size: 18px;
+        font-weight: 700;
+        color: #e3edf7;
+      }
+      /* 交互刺激按鈕 */
+      .action-btn {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #d4a754, #b28532);
+        color: #0c0e14;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        transition: transform 0.1s, opacity 0.2s;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+      }
+      .action-btn:hover {
+        opacity: 0.92;
+        transform: translateY(-1px);
+      }
+      .action-btn:active {
+        transform: translateY(1px);
+      }
+      /* 環境參數條列 */
+      .param-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid #162030;
+      }
+      .param-item:last-child {
+        border-bottom: none;
+      }
+      .param-label {
+        color: #778ca3;
+      }
+      .param-value {
+        color: #c4d7ec;
+        font-family: monospace;
+      }
+      .blender-badge {
+        font-size: 11.5px;
+        color: #d4a754;
+        margin-top: 10px;
+        line-height: 1.6;
+        background: rgba(212, 167, 84, 0.08);
+        padding: 10px 12px;
+        border-radius: 6px;
+        border-left: 3px solid #d4a754;
+      }
+      .blender-badge code {
+        color: #4ef0b5;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-container">
+      <!-- 左側 3D 觀測視窗 -->
+      <div id="viewport-panel">
+        <div id="canvas-container"></div>
+        <div class="view-hint">
+          🖱️ <strong>3D 操控</strong>：按住左鍵 360° 旋轉視角 ｜ 滾輪縮放視距 ｜ 點擊右側按鈕切換【縮殼防禦】
+        </div>
+      </div>
+
+      <!-- 右側生物生態監控儀表板 -->
+      <div id="dashboard-panel">
+        <div class="panel-header">
+          <div class="species-tag">SPECULATIVE SPECIES // M2 3D LIVE LINK</div>
+          <h1 class="species-title">硫鐵岩鱗古螺</h1>
+          <div class="species-latin">Loricata ferrosulfuris</div>
+        </div>
+
+        <!-- 即時生命狀態 -->
+        <div class="section-box">
+          <div class="section-title">📊 生物即時檢測數據</div>
+          <div id="state-badge" class="calm-mode">
+            狀態：【舒張代謝】（共生菌吸收硫化物中）
+          </div>
+          <div class="metric-row">
+            <div class="metric-card">
+              <div class="metric-label">心跳／脈動頻率</div>
+              <div id="metric-bpm" class="metric-val">42 BPM</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">化能自營碳固定率</div>
+              <div id="metric-eff" class="metric-val">96.4 %</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 交互刺激控制 -->
+        <div class="section-box">
+          <div class="section-title">⚡ 交互刺激與防禦觸發</div>
+          <button class="action-btn" onclick="window.toggleDefense()">
+            🛡️ 觸發／解除【縮殼互鎖防禦】
+          </button>
+          <div style="font-size: 11px; color: #6d8196; margin-top: 8px; text-align: center;">
+            （模擬遭遇水壓震波或游獵掠食者逼近）
+          </div>
+        </div>
+
+        <!-- 環境物理外部參數 -->
+        <div class="section-box">
+          <div class="section-title">🌡️ 冰下深淵環境外部參數</div>
+          <div class="param-item">
+            <span class="param-label">水冰絕熱外殼</span>
+            <span class="param-value">5.2 km (剛性水冰)</span>
+          </div>
+          <div class="param-item">
+            <span class="param-label">深海環境水壓</span>
+            <span class="param-value">380 atm</span>
+          </div>
+          <div class="param-item">
+            <span class="param-label">黑煙囪噴口水溫</span>
+            <span class="param-value">28.5 °C (熱羽流帶)</span>
+          </div>
+          <div class="param-item">
+            <span class="param-label">外殼礦化材質</span>
+            <span class="param-value">FeS₂ (黃鐵礦/磁黃鐵礦)</span>
+          </div>
+        </div>
+
+        <!-- Blender 連動說明 -->
+        <div class="blender-badge">
+          ✨ <strong>已與 Blender 4.4 實體連動！</strong><br>
+          目前畫面顯示的正是剛才在 Blender 中生成的實體 3D 模型（<code>snail_3d.glb</code>）。每片瓦片都具備真實的厚度與生長橫紋！
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 載入 3D 渲染與互動腳本 (標準非模組腳本) -->
+    <script src="sketch.js"></script>
+  </body>
+</html>
