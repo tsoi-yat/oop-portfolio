@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M3 個體行為與環境反應：硫鐵岩鱗古螺 (Loricata ferrosulfuris)</title>
+
+    <!-- 1. 引入 Three.js 核心與擴展 (傳統 UMD 格式，完全相容本機 file:/// 雙擊打開) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- 2. 引入 Blender 4.4 導出之實體 3D 模型 Base64 資料 -->
+    <script src="model_data.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #07090f;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", Roboto, sans-serif;
+        color: #e0e6ed;
+        height: 100vh;
+        overflow: hidden;
+      }
+      #app-container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+      }
+      /* 左側 3D 觀測視窗 */
+      #viewport-panel {
+        flex: 1;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at center, #0e1626 0%, #06090e 100%);
+      }
+      #canvas-container {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      #canvas-container canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      /* 頂部環境反應即時 HUD 橫幅 */
+      #hud-overlay {
+        position: absolute;
+        top: 20px;
+        left: 24px;
+        right: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .hud-card {
+        background: rgba(10, 16, 26, 0.86);
+        border: 1px solid rgba(140, 165, 195, 0.28);
+        border-radius: 8px;
+        padding: 12px 18px;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+      }
+      .hud-title {
+        font-size: 11px;
+        color: #d4a754;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .hud-state-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: #4ef0b5;
+      }
+      .hud-sub-text {
+        font-size: 12px;
+        color: #9ab1cc;
+        margin-top: 4px;
+      }
+      .view-hint {
+        position: absolute;
+        bottom: 18px;
+        left: 24px;
+        font-size: 12.5px;
+        color: #9ab1cc;
+        background: rgba(10, 16, 26, 0.88);
+        padding: 9px 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(140, 160, 190, 0.25);
+        backdrop-filter: blur(6px);
+        pointer-events: none;
+        z-index: 10;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      }
+      /* 右側生態監控與環境調控儀表板 */
+      #dashboard-panel {
+        width: 390px;
+        background: #0b1018;
+        border-left: 1px solid #1a2536;
+        display: flex;
+        flex-direction: column;
+        padding: 20px 22px;
+        overflow-y: auto;
+        z-index: 10;
+      }
+      .panel-header {
+        border-bottom: 1px solid #1a2536;
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+      }
+      .species-tag {
+        font-size: 11px;
+        color: #d4a754;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 3px;
+        font-weight: 700;
+      }
+      .species-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #ffffff;
+        margin: 0 0 4px 0;
+      }
+      .species-latin {
+        font-size: 12.5px;
+        color: #7e93ab;
+        font-style: italic;
+      }
+      .section-box {
+        background: #111824;
+        border: 1px solid #1c293c;
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #9ab1cc;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      /* 狀態徽章（支援 M3 四態色彩） */
+      #state-badge {
+        font-size: 13px;
+        padding: 9px 12px;
+        border-radius: 6px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-align: center;
+        transition: all 0.3s ease;
+      }
+      .mode-foraging {
+        background: rgba(60, 200, 150, 0.16);
+        color: #4ef0b5;
+        border: 1px solid rgba(78, 240, 181, 0.35);
+      }
+      .mode-hibernation {
+        background: rgba(56, 168, 255, 0.16);
+        color: #64bfff;
+        border: 1px solid rgba(100, 191, 255, 0.38);
+      }
+      .mode-overheat {
+        background: rgba(255, 187, 34, 0.18);
+        color: #ffc845;
+        border: 1px solid rgba(255, 200, 69, 0.42);
+      }
+      .mode-defense {
+        background: rgba(255, 75, 50, 0.22);
+        color: #ff6e52;
+        border: 1px solid rgba(255, 110, 82, 0.5);
+      }
+      /* 數值小卡 */
+      .metric-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .metric-card {
+        flex: 1;
+        background: #090e15;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #182333;
+      }
+      .metric-label {
+        font-size: 10.5px;
+        color: #718499;
+        margin-bottom: 3px;
+      }
+      .metric-val {
+        font-size: 16px;
+        font-weight: 700;
+        color: #e3edf7;
+      }
+      /* 環境滑桿控制項 */
+      .slider-group {
+        margin-bottom: 12px;
+      }
+      .slider-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+      .slider-label {
+        color: #c2d4e8;
+        font-weight: 600;
+      }
+      .slider-val {
+        color: #d4a754;
+        font-family: monospace;
+        font-weight: 700;
+      }
+      input[type="range"] {
+        width: 100%;
+        accent-color: #d4a754;
+        cursor: pointer;
+        height: 6px;
+        border-radius: 3px;
+      }
+      /* 四態快速切換網格 */
+      .preset-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+        margin-top: 8px;
+      }
+      .preset-btn {
+        padding: 8px 8px;
+        border-radius: 6px;
+        border: 1px solid #263850;
+        background: #141e2e;
+        color: #d0dfef;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+      }
+      .preset-btn:hover {
+        background: #1d2c42;
+        border-color: #4a6a94;
+      }
+      .preset-btn.active {
+        border-color: #d4a754;
+        background: rgba(212, 167, 84, 0.18);
+        color: #ffd984;
+      }
+      /* 主按鈕 */
+      .action-btn {
+        width: 100%;
+        padding: 10px 12px;
+        border: none;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #d4a754, #b28532);
+        color: #0c0e14;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        transition: transform 0.1s, opacity 0.2s;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+      }
+      .action-btn:hover {
+        opacity: 0.93;
+        transform: translateY(-1px);
+      }
+      .demo-btn {
+        background: linear-gradient(135deg, #25b888, #168560);
+        color: #ffffff;
+        margin-bottom: 8px;
+      }
+      .demo-btn.running {
+        background: linear-gradient(135deg, #e0523c, #a83220);
+      }
+      .float-btn {
+        background: linear-gradient(135deg, #18334d, #102133);
+        color: #8ac0e8;
+        border: 1px solid #22476d;
+      }
+      .float-btn.active {
+        background: linear-gradient(135deg, #0e648a, #09435e);
+        color: #d6f2ff;
+        border: 1px solid #2392c4;
+        box-shadow: 0 0 10px rgba(14, 100, 138, 0.45);
+      }
+      /* 行為天性日誌 */
+      .behavior-log {
+        font-size: 11.5px;
+        color: #b4c7dc;
+        background: #090d14;
+        border: 1px solid #182334;
+        border-radius: 6px;
+        padding: 9px 11px;
+        line-height: 1.55;
+      }
+      .behavior-log strong {
+        color: #ffd275;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-container">
+      <!-- 左側 3D 觀測視窗 -->
+      <div id="viewport-panel">
+        <div id="canvas-container"></div>
+
+        <!-- 頂部即時環境反應 HUD -->
+        <div id="hud-overlay">
+          <div class="hud-card">
+            <div class="hud-title">M3 INDIVIDUAL AUTONOMOUS STATE // 個體天性狀態機</div>
+            <div id="hud-state-title" class="hud-state-text">🌿 狀態 ①：適溫趨熱覓食 (FORAGING)</div>
+            <div id="hud-state-desc" class="hud-sub-text">紅外線球端觸角追蹤滑鼠熱源，暗金齒舌規律刮食熱液生物膜，青綠螢光穩定脈動</div>
+          </div>
+          <div class="hud-card" style="text-align: right;">
+            <div class="hud-title">SENSORY INPUT // 感官接收</div>
+            <div id="hud-sensor-readout" class="hud-sub-text" style="color: #ffd275; font-family: monospace; font-size: 13px;">
+              水溫: 32°C | H₂S: 85% | 威脅: 安全
+            </div>
+          </div>
+        </div>
+
+        <div class="view-hint">
+          🖱️ <strong>3D 水中游動導航</strong>：<strong>按住滑鼠左鍵</strong>＝引導古螺游向鼠標 ｜ <strong>平常自主隨機飄游位移</strong> ｜ <strong>右鍵拖曳</strong>＝旋轉視角 ｜ <strong>滾輪</strong>＝縮放 ｜ <strong>雙擊畫面</strong>＝縮殼噴煙防禦
+        </div>
+      </div>
+
+      <!-- 右側 M3 環境調控與個體生理儀表板 -->
+      <div id="dashboard-panel">
+        <div class="panel-header">
+          <div class="species-tag">M3 CREATURE BEHAVIOR // OOP 狀態機封裝</div>
+          <h1 class="species-title">硫鐵岩鱗古螺</h1>
+          <div class="species-latin">Loricata ferrosulfuris — 環境反應與自主天性</div>
+        </div>
+
+        <!-- 1. 一鍵自動展演與快速環境情境 -->
+        <div class="section-box">
+          <div class="section-title">
+            <span>🎬 上台報告控制與四態環境模擬</span>
+            <span id="auto-demo-tag" style="color: #4ef0b5; font-size: 11px;">手動/滑鼠互動中</span>
+          </div>
+          <button id="btn-auto-demo" class="action-btn demo-btn" onclick="window.toggleAutoDemo()">
+            ▶️ 啟動【四態環境反應自動循環展演】
+          </button>
+
+          <div class="preset-grid">
+            <button id="preset-forage" class="preset-btn active" onclick="window.applyEnvPreset('FORAGING')">
+              🌿 ① 適溫覓食 (32°C)
+            </button>
+            <button id="preset-hibernate" class="preset-btn" onclick="window.applyEnvPreset('HIBERNATION')">
+              ❄️ ② 極寒休眠 (4°C)
+            </button>
+            <button id="preset-overheat" class="preset-btn" onclick="window.applyEnvPreset('OVERHEAT')">
+              🔥 ③ 噴泉過熱 (85°C)
+            </button>
+            <button id="preset-defense" class="preset-btn" onclick="window.applyEnvPreset('DEFENSE')">
+              🛡️ ④ 掠食者襲擊 (警戒)
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. 深海環境物理參數滑桿 -->
+        <div class="section-box">
+          <div class="section-title">🌡️ 深海黑煙囪環境刺激滑桿</div>
+
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">熱液口環境水溫 (Temperature)</span>
+              <span id="val-temp" class="slider-val">32 °C (適溫帶)</span>
+            </div>
+            <input id="slider-temp" type="range" min="2" max="105" value="32" oninput="window.onEnvSliderChange()" />
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#687c94; margin-top:2px;">
+              <span>2°C (&lt;10°C 休眠)</span>
+              <span>18~45°C (適溫覓食)</span>
+              <span>&gt;60°C (過熱趨避)</span>
+            </div>
+          </div>
+
+          <div class="slider-group" style="margin-bottom: 4px;">
+            <div class="slider-header">
+              <span class="slider-label">硫化氫化能濃度 (H₂S Plume)</span>
+              <span id="val-h2s" class="slider-val">85 %</span>
+            </div>
+            <input id="slider-h2s" type="range" min="10" max="100" value="85" oninput="window.onEnvSliderChange()" />
+          </div>
+        </div>
+
+        <!-- 3. 個體即時生理回饋數據 -->
+        <div class="section-box">
+          <div class="section-title">📊 個體內部恆定與生理指標 (Homeostasis)</div>
+          <div id="state-badge" class="mode-foraging">
+            ● 狀態 ①：【適溫趨熱覓食】（青綠共生光＋齒舌刮食）
+          </div>
+          <div class="metric-row">
+            <div class="metric-card">
+              <div class="metric-label">心率／呼吸脈動</div>
+              <div id="metric-bpm" class="metric-val">42 BPM</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">化能自營碳固定率</div>
+              <div id="metric-eff" class="metric-val">95.8 %</div>
+            </div>
+          </div>
+          <div class="metric-row" style="margin-bottom: 0;">
+            <div class="metric-card">
+              <div class="metric-label">體內核心溫度</div>
+              <div id="metric-body-temp" class="metric-val">31.5 °C</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">神經警戒壓力值</div>
+              <div id="metric-stress" class="metric-val">8 %</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. 個體神經與運動器官即時反應日誌 -->
+        <div class="section-box" style="margin-bottom: 0;">
+          <div class="section-title">🧠 器官連動與行為天性解析</div>
+          <div id="behavior-detail-box" class="behavior-log">
+            <strong>【感官】</strong>1對球端紅外線觸角鎖定 18~45°C 適溫區並追隨游標熱源。<br>
+            <strong>【運動】</strong>頭盾舒張擺動、暗金齒舌高頻刮食玄武岩生物膜，60片橫紋甲片隨呼吸微幅開闔。<br>
+            <strong>【防禦】</strong>可隨時雙擊畫面或點擊按鈕切換穿山甲縮殼互鎖。
+          </div>
+          <button id="btn-float-mode" class="action-btn float-btn active" style="margin-top: 10px;" onclick="window.toggleFloatingMode()">
+            🌊 水底飄遊動態：已開啟（微擺鐵片與觸角游弋）
+          </button>
+          <button class="action-btn" style="margin-top: 7px; background: #1a2638; color: #c7d8ec; border: 1px solid #2e4360; padding: 8px;" onclick="window.toggleRockBase()">
+            🪨 顯示／隱藏【黑煙囪玄武岩底座】（預設已移除懸浮）
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 載入 M3 OOP 個體狀態機與 3D 互動腳本 -->
+    <script src="sketch.js"></script>
+  </body>
+</html>
