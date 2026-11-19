@@ -1,4 +1,13 @@
-# M3 個體
+# M3 個體：硫鐵岩鱗古螺（*Loricata ferrosulfuris*）
+
+[![即刻在瀏覽器操作 3D 硫鐵岩鱗古螺](https://img.shields.io/badge/🎮_即刻線上互動展演-點此在瀏覽器操作硫鐵岩鱗古螺-00bcd4?style=for-the-badge&logo=three.js&logoColor=white)](https://tsoi-yat.github.io/oop-portfolio/m3-creature/)
+
+> 🚀 **【線上即時互動操作入口】**：[https://tsoi-yat.github.io/oop-portfolio/m3-creature/](https://tsoi-yat.github.io/oop-portfolio/m3-creature/)
+> *（免下載、免安裝，點開即可直接在瀏覽器進行 360° 視角旋轉、按住滑鼠左鍵引導游弋漫遊、即時切換四態環境反應）*
+
+---
+
+
 
 > 截止：11/12（四）上課前 15:30
 > 這一站在做什麼、怎麼做、卡住看哪裡，都在課程頁：<https://course.interaction.tw/oop/#milestones>
