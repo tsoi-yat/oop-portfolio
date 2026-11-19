@@ -1,5 +1,7 @@
 # 我的作品集：物件導向程式設計
 
+> 🎮 **【最新成果 M3 線上 3D 即時互動展演】**：[![即刻在瀏覽器操作 3D 硫鐵岩鱗古螺](https://img.shields.io/badge/🎮_點此即刻在瀏覽器操作硫鐵岩鱗古螺-00bcd4?style=flat-square&logo=three.js&logoColor=white)](https://tsoi-yat.github.io/oop-portfolio/m3-creature/)
+
 > 這是你整學期的作品集 repo：後未來動物園 M0 到 M6 七站的作品、你的 AI 工作流、你的成長紀錄，全部在這裡累積。
 > 課程頁：<https://course.interaction.tw/oop/>（每週進度、各站步驟與截止時間都在課程頁）
 
